@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet-draw'
@@ -20,27 +21,57 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon
 
-interface CoordinatesDisplayProps {
-  coordinates: string | null
+interface ShapeData {
+  type: string
+  coordinates: LatLngExpression[]
+  area: string
+  areaInSquareMeters: number
 }
 
-function CoordinatesDisplay({ coordinates }: CoordinatesDisplayProps) {
-  if (!coordinates) {
+interface ViewAnalysisButtonProps {
+  shapeData: ShapeData | null
+}
+
+function ViewAnalysisButton({ shapeData }: ViewAnalysisButtonProps) {
+  const router = useRouter()
+
+  if (!shapeData) {
     return (
       <div className="bg-gradient-to-br from-[#f5e6d3] to-[#ede4d3] rounded-xl p-6 shadow-lg border-2 border-amber-200/50">
-        <p className="text-muted-foreground italic font-medium">Draw a polygon or rectangle on the map to see coordinates</p>
+        <p className="text-muted-foreground italic font-medium text-center">Draw a polygon or rectangle on the map to analyze the area</p>
       </div>
     )
   }
 
+  const handleViewAnalysis = () => {
+    // Store shape data in localStorage for the analysis page
+    try {
+      localStorage.setItem('shapeData', JSON.stringify(shapeData))
+      // Navigate to analysis page using Next.js router
+      router.push('/analysis')
+    } catch (error) {
+      console.error('Error storing shape data:', error)
+    }
+  }
+
   return (
     <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-xl p-6 shadow-lg border-2 border-success/30">
-      <h3 className="text-xl font-bold text-success mb-4">
-        Selected Area Coordinates:
-      </h3>
-      <pre className="bg-white/90 backdrop-blur-sm border-2 border-success/20 rounded-lg p-4 overflow-x-auto text-sm leading-relaxed text-foreground font-mono whitespace-pre-wrap break-words shadow-inner">
-        {coordinates}
-      </pre>
+      <div className="text-center space-y-4">
+        <div>
+          <h3 className="text-xl font-bold text-success mb-2">
+            Area Selected Successfully!
+          </h3>
+          <p className="text-muted-foreground">
+            Shape: {shapeData.type} • Area: {shapeData.area}
+          </p>
+        </div>
+        <button
+          onClick={handleViewAnalysis}
+          className="w-full bg-success hover:bg-success/90 text-white font-semibold py-3 px-6 rounded-lg shadow-md border-2 border-success/30 transition-all duration-200 hover:shadow-lg hover:scale-105"
+        >
+          View Detailed Analysis
+        </button>
+      </div>
     </div>
   )
 }
@@ -55,7 +86,7 @@ function MapCenter({ center, zoom }: { center: LatLngExpression; zoom: number })
 }
 
 interface DrawControlProps {
-  onDrawComplete: (coordinates: string, rawCoords: LatLngExpression[]) => void
+  onDrawComplete: (shapeData: ShapeData) => void
 }
 
 function DrawControl({ onDrawComplete }: DrawControlProps) {
@@ -200,28 +231,22 @@ function DrawControl({ onDrawComplete }: DrawControlProps) {
       const areaInSquareMeters = calculateArea(layer as L.Rectangle | L.Polygon)
       const areaString = formatArea(areaInSquareMeters)
 
-      // Format coordinates for display
-      const formattedCoords = coords
-        .map((coord) => {
-          if (Array.isArray(coord)) {
-            return `[${coord[0]}, ${coord[1]}]`
-          }
-          return `[${(coord as L.LatLng).lat}, ${(coord as L.LatLng).lng}]`
-        })
-        .join(',\n  ')
-
-      const coordinatesString = `${type} Coordinates:\n  ${formattedCoords}\n\nArea: ${areaString}`
+      // Create shape data object
+      const shapeData: ShapeData = {
+        type,
+        coordinates: coords,
+        area: areaString,
+        areaInSquareMeters: areaInSquareMeters
+      }
 
       // Log to console
-      console.log(coordinatesString)
-      console.log('Raw coordinates:', coords)
-      console.log('Area:', areaString)
+      console.log('Shape Data:', shapeData)
 
       // Add layer to feature group
       featureGroup.addLayer(layer)
 
       // Call the callback to update parent state
-      onDrawComplete(coordinatesString, coords)
+      onDrawComplete(shapeData)
     }
 
     map.on(L.Draw.Event.CREATED as any, handleDrawCreated)
@@ -240,7 +265,7 @@ function DrawControl({ onDrawComplete }: DrawControlProps) {
 }
 
 export default function InteractiveMap() {
-  const [coordinates, setCoordinates] = useState<string | null>(null)
+  const [shapeData, setShapeData] = useState<ShapeData | null>(null)
   const [userLocation, setUserLocation] = useState<LatLngExpression | null>(null)
   // Toronto, Canada coordinates (fallback)
   const torontoCoords: LatLngExpression = [43.6532, -79.3832]
@@ -291,8 +316,8 @@ export default function InteractiveMap() {
     }
   }, [])
 
-  const handleDrawComplete = useCallback((coords: string, rawCoords: LatLngExpression[]) => {
-    setCoordinates(coords)
+  const handleDrawComplete = useCallback((data: ShapeData) => {
+    setShapeData(data)
   }, [])
 
   const handleLocationSearch = useCallback((coordinates: LatLngExpression, name: string) => {
@@ -356,7 +381,7 @@ export default function InteractiveMap() {
           <DrawControl onDrawComplete={handleDrawComplete} />
         </MapContainer>
       </div>
-      <CoordinatesDisplay coordinates={coordinates} />
+      <ViewAnalysisButton shapeData={shapeData} />
     </div>
   )
 }
