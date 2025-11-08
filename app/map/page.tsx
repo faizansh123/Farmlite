@@ -1,13 +1,10 @@
 "use client";
-import dynamic from 'next/dynamic'
-import Link from 'next/link'
-import { Sprout, ArrowLeft } from 'lucide-react'
-
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { LatLngExpression } from "leaflet";
 import { useRouter } from "next/navigation";
+import { Sprout, ArrowLeft } from 'lucide-react';
 
 const InteractiveMap = dynamic(() => import("../components/InteractiveMap"), {
   ssr: false,
@@ -72,37 +69,6 @@ export default function MapPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 px-4 py-8 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors"
-        >
-          ← Back to Home
-        </Link>
-      </div>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-          Interactive Map - Area Selector
-        </h1>
-        <p className="text-lg text-purple-700 font-medium">
-          Draw a polygon or rectangle to get coordinates
-        </p>
-      </div>
-      <InteractiveMap
-        coordinates={coordinates}
-        setCoordinates={setCoordinates}
-        setRawCoordinates={setRawCoordinates}
-      />
-
-      <button
-        onClick={goToPolygonResult}
-        className="px-4 py-2 bg-purple-600 text-white rounded"
-      >
-        Go to Result Page
-      </button>
-    </main>
-  );
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/95 backdrop-blur-sm">
@@ -139,8 +105,22 @@ export default function MapPage() {
             </p>
           </div>
         </div>
-        <InteractiveMap />
+        <InteractiveMap
+          coordinates={coordinates}
+          setCoordinates={setCoordinates}
+          setRawCoordinates={setRawCoordinates}
+        />
+        {polygon.polyid && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={goToPolygonResult}
+              className="px-6 py-3 bg-success hover:bg-success/90 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg"
+            >
+              Go to Result Page
+            </button>
+          </div>
+        )}
       </main>
     </div>
-  )
+  );
 }
