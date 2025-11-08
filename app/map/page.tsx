@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { Sprout, ArrowLeft } from 'lucide-react'
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const InteractiveMap = dynamic(() => import('../components/InteractiveMap'), {
@@ -7,7 +8,7 @@ const InteractiveMap = dynamic(() => import('../components/InteractiveMap'), {
   loading: () => (
     <div className="flex items-center justify-center p-8 text-center">
       <div className="animate-pulse">
-        <p className="text-purple-600 font-semibold">Loading map...</p>
+        <p className="text-success font-semibold">Loading map...</p>
       </div>
     </div>
   ),
@@ -15,25 +16,45 @@ const InteractiveMap = dynamic(() => import('../components/InteractiveMap'), {
 
 export default function MapPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 px-4 py-8 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors"
-        >
-          ← Back to Home
-        </Link>
-      </div>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-          Interactive Map - Area Selector
-        </h1>
-        <p className="text-lg text-purple-700 font-medium">
-          Draw a polygon or rectangle to get coordinates
-        </p>
-      </div>
-      <InteractiveMap />
-    </main>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-success shadow-md border border-success/30">
+                <Sprout className="size-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">FarmLite</h1>
+                <p className="text-xs text-muted-foreground">Smart Soil Analysis</p>
+              </div>
+            </div>
+            <Link 
+              href="/" 
+              className="inline-flex items-center gap-2 text-foreground hover:text-success font-medium transition-colors"
+            >
+              <ArrowLeft className="size-4" />
+              Back to Home
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 md:p-8 max-w-7xl">
+        <div className="mb-8">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+              Interactive Farm Map
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Draw a polygon or rectangle to analyze soil quality and get coordinates
+            </p>
+          </div>
+        </div>
+        <InteractiveMap />
+      </main>
+    </div>
   )
 }
 

@@ -14,7 +14,7 @@ export default function FarmLiteDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-success">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-success shadow-md border border-success/30">
                 <Sprout className="size-6 text-white" />
               </div>
               <div>
@@ -34,7 +34,7 @@ export default function FarmLiteDashboard() {
                 Analysis
               </a>
               <Link href="/map">
-                <Button size="sm" className="bg-success hover:bg-success/90 text-white">
+                <Button size="sm" className="bg-success hover:bg-success/90 text-white shadow-md border border-success/30">
                   Get Started
                 </Button>
               </Link>
@@ -44,10 +44,10 @@ export default function FarmLiteDashboard() {
       </header>
 
       {/* Hero Section */}
-      <section className="border-b border-border bg-background">
+      <section className="border-b border-border bg-gradient-to-br from-[#f5e6d3] via-[#faf9f6] to-[#ede4d3]">
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-3xl">
-            <Badge className="mb-4 bg-success/10 text-success border-success/30 border">AI-Powered Analysis</Badge>
+            <Badge className="mb-4 bg-success/15 text-success border-success/40 border">AI-Powered Analysis</Badge>
             <h2 className="mb-4 text-4xl font-bold leading-tight text-balance text-foreground md:text-5xl">
               Interactive Farm Map
             </h2>
@@ -58,15 +58,15 @@ export default function FarmLiteDashboard() {
 
             {/* SQI Legend */}
             <div className="flex flex-wrap gap-3 mb-8">
-              <div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 border border-border shadow-sm">
+              <div className="flex items-center gap-2 rounded-full bg-white/80 backdrop-blur-sm px-4 py-2 border border-amber-200/50 shadow-sm">
                 <div className="size-3 rounded-full bg-success" />
                 <span className="text-sm font-medium text-foreground">80-100: Excellent</span>
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 border border-border shadow-sm">
-                <div className="size-3 rounded-full bg-warning" />
+              <div className="flex items-center gap-2 rounded-full bg-white/80 backdrop-blur-sm px-4 py-2 border border-amber-200/50 shadow-sm">
+                <div className="size-3 rounded-full bg-[#f4a460]" />
                 <span className="text-sm font-medium text-foreground">50-79: Moderate</span>
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 border border-border shadow-sm">
+              <div className="flex items-center gap-2 rounded-full bg-white/80 backdrop-blur-sm px-4 py-2 border border-amber-200/50 shadow-sm">
                 <div className="size-3 rounded-full bg-destructive" />
                 <span className="text-sm font-medium text-foreground">0-49: Poor</span>
               </div>
@@ -80,9 +80,9 @@ export default function FarmLiteDashboard() {
         <Card className="overflow-hidden border-2 border-border shadow-lg">
           <CardContent className="p-0">
             {/* Map Container with Button */}
-            <div className="relative bg-gradient-to-br from-success/5 via-secondary to-warning/5 p-16">
+            <div className="relative bg-gradient-to-br from-[#f5e6d3] via-[#ede4d3] to-[#daa520]/20 p-16">
               <div className="flex flex-col items-center justify-center text-center space-y-6">
-                <div className="size-24 rounded-full bg-success/20 flex items-center justify-center shadow-lg">
+                <div className="size-24 rounded-full bg-success/25 flex items-center justify-center shadow-lg border-2 border-success/30">
                   <MapPin className="size-12 text-success" />
                 </div>
                 <div className="space-y-4 max-w-md">
@@ -91,7 +91,7 @@ export default function FarmLiteDashboard() {
                     Open the interactive map to draw polygons or rectangles and get instant soil quality analysis, vegetation health data, and irrigation insights.
                   </p>
                   <Link href="/map">
-                    <Button size="lg" className="bg-success hover:bg-success/90 text-white mt-4">
+                    <Button size="lg" className="bg-success hover:bg-success/90 text-white mt-4 shadow-lg border-2 border-success/30">
                       Open Interactive Map
                       <ArrowRight className="ml-2 size-5" />
                     </Button>
@@ -101,9 +101,9 @@ export default function FarmLiteDashboard() {
             </div>
 
             {/* Instructions */}
-            <div className="border-t border-border bg-card p-6">
+            <div className="border-t border-border bg-gradient-to-r from-white to-[#fef9e7] p-6">
               <div className="flex items-start gap-4">
-                <div className="rounded-lg bg-success/10 p-3">
+                <div className="rounded-lg bg-success/15 p-3 border border-success/20">
                   <MapPin className="size-6 text-success" />
                 </div>
                 <div>
@@ -120,14 +120,14 @@ export default function FarmLiteDashboard() {
       </section>
 
       {/* Features Grid */}
-      <section className="container mx-auto px-4 py-12">
+      <section className="container mx-auto px-4 py-12 bg-gradient-to-b from-background to-[#faf5e6]">
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="border-2 border-border hover:border-success/50 transition-colors">
+          <Card className="border-2 border-success hover:border-success shadow-lg transition-colors bg-gradient-to-br from-success/20 to-success/10">
             <CardContent className="p-6">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-success/20">
-                <TrendingUp className="size-6 text-success" />
+              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-success border-2 border-success/50 shadow-md">
+                <TrendingUp className="size-6 text-white" />
               </div>
-              <h3 className="mb-2 text-xl font-bold text-foreground">Soil Quality Index</h3>
+              <h3 className="mb-2 text-xl font-bold text-success">Soil Quality Index</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Real-time SQI analysis from ESA Copernicus and NASA satellite data to identify the most fertile regions
                 for planting.
@@ -135,24 +135,24 @@ export default function FarmLiteDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-border hover:border-warning/50 transition-colors">
+          <Card className="border-2 border-amber-500 hover:border-amber-600 shadow-lg transition-colors bg-gradient-to-br from-amber-50 to-amber-100/50">
             <CardContent className="p-6">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-warning/20">
-                <Sprout className="size-6 text-warning" />
+              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-amber-500 border-2 border-amber-600/50 shadow-md">
+                <Sprout className="size-6 text-white" />
               </div>
-              <h3 className="mb-2 text-xl font-bold text-foreground">Vegetation Health</h3>
+              <h3 className="mb-2 text-xl font-bold text-amber-700">Vegetation Health</h3>
               <p className="text-muted-foreground leading-relaxed">
                 NDVI analysis to monitor crop health and identify areas requiring attention or intervention.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-border hover:border-blue-400/50 transition-colors">
+          <Card className="border-2 border-blue-500 hover:border-blue-600 shadow-lg transition-colors bg-gradient-to-br from-blue-50 to-blue-100/50">
             <CardContent className="p-6">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-100">
-                <Droplets className="size-6 text-blue-600" />
+              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500 border-2 border-blue-600/50 shadow-md">
+                <Droplets className="size-6 text-white" />
               </div>
-              <h3 className="mb-2 text-xl font-bold text-foreground">Irrigation Insights</h3>
+              <h3 className="mb-2 text-xl font-bold text-blue-700">Irrigation Insights</h3>
               <p className="text-muted-foreground leading-relaxed">
                 NASA Soil Moisture data combined with AI to provide actionable irrigation and soil improvement
                 recommendations.
@@ -163,7 +163,7 @@ export default function FarmLiteDashboard() {
       </section>
 
       {/* CTA Section */}
-      <section className="border-t border-border bg-gradient-to-br from-warning/10 via-secondary to-success/5">
+      <section className="border-t border-border bg-gradient-to-br from-[#f5e6d3] via-[#ede4d3] to-[#daa520]/25">
         <div className="container mx-auto px-4 py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <h2 className="mb-4 text-3xl font-bold text-foreground text-balance">Start Analyzing Your Farm Today</h2>
@@ -172,11 +172,11 @@ export default function FarmLiteDashboard() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link href="/map">
-                <Button size="lg" className="bg-success hover:bg-success/90 text-white">
+                <Button size="lg" className="bg-success hover:bg-success/90 text-white shadow-lg border-2 border-success/30">
                   Get Started Free
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="border-2 border-border hover:bg-secondary">
+              <Button size="lg" variant="outline" className="border-2 border-amber-300/60 hover:bg-[#fef3c7] text-foreground">
                 Watch Demo
               </Button>
             </div>

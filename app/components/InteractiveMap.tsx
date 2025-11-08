@@ -27,18 +27,18 @@ interface CoordinatesDisplayProps {
 function CoordinatesDisplay({ coordinates }: CoordinatesDisplayProps) {
   if (!coordinates) {
     return (
-      <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 shadow-lg border-2 border-blue-200">
-        <p className="text-purple-700 italic font-medium">Draw a polygon or rectangle on the map to see coordinates</p>
+      <div className="bg-gradient-to-br from-[#f5e6d3] to-[#ede4d3] rounded-xl p-6 shadow-lg border-2 border-amber-200/50">
+        <p className="text-muted-foreground italic font-medium">Draw a polygon or rectangle on the map to see coordinates</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 shadow-lg border-2 border-emerald-300">
-      <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-4">
+    <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-xl p-6 shadow-lg border-2 border-success/30">
+      <h3 className="text-xl font-bold text-success mb-4">
         Selected Area Coordinates:
       </h3>
-      <pre className="bg-white/80 backdrop-blur-sm border-2 border-emerald-200 rounded-lg p-4 overflow-x-auto text-sm leading-relaxed text-gray-800 font-mono whitespace-pre-wrap break-words shadow-inner">
+      <pre className="bg-white/90 backdrop-blur-sm border-2 border-success/20 rounded-lg p-4 overflow-x-auto text-sm leading-relaxed text-foreground font-mono whitespace-pre-wrap break-words shadow-inner">
         {coordinates}
       </pre>
     </div>
@@ -305,16 +305,16 @@ export default function InteractiveMap() {
   return (
     <div className="flex flex-col gap-6">
       {isLoadingLocation && !searchedLocation && (
-        <div className="bg-gradient-to-r from-blue-400 to-purple-400 text-white rounded-lg p-3 text-sm font-semibold shadow-lg animate-pulse">
+        <div className="bg-gradient-to-r from-success to-success/80 text-white rounded-lg p-3 text-sm font-semibold shadow-lg animate-pulse border border-success/30">
           ✨ Getting your location...
         </div>
       )}
       {locationError && !searchedLocation && (
-        <div className="bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-lg p-3 text-sm font-semibold shadow-lg">
+        <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg p-3 text-sm font-semibold shadow-lg border border-amber-600/30">
           ⚠️ {locationError}
         </div>
       )}
-      <div className="relative rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-white to-blue-50 p-2 border-2 border-blue-200">
+      <div className="relative rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-white to-[#faf5e6] p-2 border-2 border-amber-200/50">
         {/* Location Search Bar - Positioned over map with high z-index */}
         <div className="absolute top-4 left-4 right-4 z-[1000]">
           <LocationSearch onLocationSelect={handleLocationSearch} />

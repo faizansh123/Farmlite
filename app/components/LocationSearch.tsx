@@ -117,11 +117,11 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
             }
           }}
           placeholder="Search for a location..."
-          className="w-full px-4 py-3 pl-10 pr-10 text-gray-900 bg-white/95 backdrop-blur-sm border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none shadow-lg transition-all duration-200 hover:shadow-xl"
+          className="w-full px-4 py-3 pl-10 pr-10 text-foreground bg-white/95 backdrop-blur-sm border-2 border-success/30 rounded-lg focus:ring-2 focus:ring-success focus:border-success outline-none shadow-lg transition-all duration-200 hover:shadow-xl"
         />
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <svg
-            className="w-5 h-5 text-purple-500"
+            className="w-5 h-5 text-success"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -137,7 +137,7 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
         {isLoading && (
           <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
             <svg
-              className="animate-spin h-5 w-5 text-purple-500"
+              className="animate-spin h-5 w-5 text-success"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -162,7 +162,7 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
 
       {/* Autocomplete Dropdown - High z-index to appear over map */}
       {showDropdown && results.length > 0 && (
-        <div className="absolute z-[1000] w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-purple-200 rounded-lg shadow-xl max-h-60 overflow-auto">
+        <div className="absolute z-[1000] w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-success/20 rounded-lg shadow-xl max-h-60 overflow-auto">
           {results.map((result, index) => (
             <div
               key={result.place_id}
@@ -170,16 +170,16 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
               onMouseEnter={() => setSelectedIndex(index)}
               className={`px-4 py-3 cursor-pointer transition-all duration-150 ${
                 index === selectedIndex
-                  ? 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-900 font-semibold shadow-inner'
-                  : 'text-gray-900 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50'
+                  ? 'bg-gradient-to-r from-success/20 to-success/10 text-success font-semibold shadow-inner'
+                  : 'text-foreground hover:bg-gradient-to-r hover:from-success/10 hover:to-amber-50/50'
               } ${index === 0 ? 'rounded-t-lg' : ''} ${
-                index === results.length - 1 ? 'rounded-b-lg' : 'border-b border-purple-100'
+                index === results.length - 1 ? 'rounded-b-lg' : 'border-b border-success/10'
               }`}
             >
               <div className="flex items-start">
                 <svg
                   className={`w-5 h-5 mt-0.5 mr-2 flex-shrink-0 ${
-                    index === selectedIndex ? 'text-purple-600' : 'text-purple-400'
+                    index === selectedIndex ? 'text-success' : 'text-success/60'
                   }`}
                   fill="none"
                   stroke="currentColor"
@@ -208,7 +208,7 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
       )}
 
       {showDropdown && searchQuery.length >= 3 && !isLoading && results.length === 0 && (
-        <div className="absolute z-[1000] w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-purple-200 rounded-lg shadow-xl p-4 text-center text-purple-600 font-medium">
+        <div className="absolute z-[1000] w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-success/20 rounded-lg shadow-xl p-4 text-center text-success font-medium">
           No locations found
         </div>
       )}

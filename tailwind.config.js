@@ -22,7 +22,7 @@ module.exports = {
         'accent-foreground': '#2d2d2d',
         destructive: '#dc2626', // Soft red
         'destructive-foreground': '#ffffff',
-        success: '#22c55e', // Vibrant green
+        success: '#166534', // Dark green
         'success-foreground': '#ffffff',
         warning: '#eab308', // Muted yellow/gold
         'warning-foreground': '#2d2d2d',
