@@ -109,3 +109,27 @@
   box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3) !important;
 }
 
+/* Style Leaflet attribution control to match Farm Lite theme */
+.leaflet-control-attribution {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid #e5e3df !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  color: #2d2d2d !important;
+  font-family: inherit !important;
+}
+
+.leaflet-control-attribution a {
+  color: #166534 !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+}
+
+.leaflet-control-attribution a:hover {
+  color: #14532d !important;
+  text-decoration: underline !important;
+}
+

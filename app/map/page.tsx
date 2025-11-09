@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { LatLngExpression } from "leaflet";
 import { useRouter } from "next/navigation";
-import { Sprout, ArrowLeft } from 'lucide-react';
+import { Sprout, ArrowLeft, MapPin } from 'lucide-react';
 
 const InteractiveMap = dynamic(() => import("../components/InteractiveMap"), {
   ssr: false,
@@ -97,9 +97,14 @@ export default function MapPage() {
       <main className="container mx-auto px-4 py-8 md:p-8 max-w-7xl">
         <div className="mb-8">
           <div className="text-center mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Interactive Farm Map
-            </h1>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-success/10 border-2 border-success/30 shadow-sm">
+                <MapPin className="size-6 text-success" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+                Interactive Farm Map
+              </h1>
+            </div>
             <p className="text-lg text-muted-foreground">
               Draw a polygon or rectangle to analyze soil quality and get coordinates
             </p>

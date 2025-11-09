@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Interactive Map - Leaflet Draw',
-  description: 'Select areas on the map using polygon or rectangle tools',
+  title: 'FarmLite - Interactive Farm Map',
+  description: 'Select areas on the map using polygon or rectangle tools for smart soil analysis',
 }
 
 export default function RootLayout({
