@@ -43,6 +43,7 @@ export default function ComparisonPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadedCount, setLoadedCount] = useState(0)
+  const [radiusKm, setRadiusKm] = useState<number>(100) // Default 100 km
 
   // Generate random point within radius (in km)
   // center is [lat, lng] format
@@ -144,8 +145,7 @@ export default function ComparisonPage() {
         throw new Error('Invalid center coordinates')
       }
       
-      // Generate 4 random locations within 100 km radius
-      const radiusKm = 100 // 100 km radius
+      // Generate 4 random locations within selected radius
       const numLocations = 4
       const randomPoints: [number, number][] = []
 
@@ -159,8 +159,9 @@ export default function ComparisonPage() {
           console.log(`Generated point ${i + 1}:`, point, `Distance: ${distance.toFixed(2)} km`)
           
           attempts++
-          // Ensure minimum distance between points (at least 5km apart)
-          const tooClose = randomPoints.some(p => calculateDistance(p, point) < 5)
+          // Ensure minimum distance between points (at least 5km apart, or 10% of radius, whichever is smaller)
+          const minDistance = Math.min(5, radiusKm * 0.1)
+          const tooClose = randomPoints.some(p => calculateDistance(p, point) < minDistance)
           if (!tooClose || attempts > 50) break
         } while (attempts < 50)
         randomPoints.push(point)
@@ -261,7 +262,7 @@ export default function ComparisonPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [currentAnalysis, generateRandomPoint, create3HectareRectangle, calculateDistance])
+  }, [currentAnalysis, radiusKm, generateRandomPoint, create3HectareRectangle, calculateDistance])
 
   // Load current analysis on mount
   useEffect(() => {
@@ -330,12 +331,7 @@ export default function ComparisonPage() {
     }
   }, [])
 
-  // Auto-load comparison areas when currentAnalysis is available
-  useEffect(() => {
-    if (currentAnalysis && comparisonAreas.length === 0 && !isLoading && !error) {
-      loadComparisonAreas()
-    }
-  }, [currentAnalysis, comparisonAreas.length, isLoading, error, loadComparisonAreas])
+  // Don't auto-load - wait for user to select radius and click search
 
   const getScoreColor = (score: number): string => {
     if (score >= 80) return 'text-green-700 bg-green-100 border-green-300'
@@ -362,9 +358,60 @@ export default function ComparisonPage() {
             Back to Analysis
           </Link>
           <h1 className="text-3xl font-bold text-success mb-2">Nearby Area Comparison</h1>
-          <p className="text-muted-foreground">
-            Comparing your area with 3-4 randomly selected nearby locations (within 100km radius, 3 hectares each)
+          <p className="text-muted-foreground mb-4">
+            Compare your area with 3-4 randomly selected nearby locations (3 hectares each)
           </p>
+          
+          {/* Radius Selector */}
+          {currentAnalysis && (
+            <Card className="border-2 border-blue-400/50 bg-gradient-to-br from-blue-50 to-blue-100/50 mb-6">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="radius" className="block text-sm font-medium text-foreground mb-2">
+                      Search Radius: <span className="font-bold text-blue-700">{radiusKm} km</span>
+                    </label>
+                    <input
+                      type="range"
+                      id="radius"
+                      min="10"
+                      max="100"
+                      step="10"
+                      value={radiusKm}
+                      onChange={(e) => setRadiusKm(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>10 km</span>
+                      <span>100 km</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setComparisonAreas([])
+                      setError(null)
+                      loadComparisonAreas()
+                    }}
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md border-2 border-blue-400/50 transition-all duration-200 hover:shadow-lg hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="size-5 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="size-5" />
+                        Search Nearby Areas
+                      </>
+                    )}
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Loading State */}
@@ -377,7 +424,7 @@ export default function ComparisonPage() {
                   Loading comparison areas... ({loadedCount}/4)
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Creating and analyzing polygons. This may take a moment.
+                  Searching within {radiusKm}km radius. Creating and analyzing polygons. This may take a moment.
                 </p>
               </div>
             </CardContent>

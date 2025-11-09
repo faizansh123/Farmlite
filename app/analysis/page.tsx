@@ -114,8 +114,86 @@ export default function AnalysisPage() {
   const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [isCreatingPolygon, setIsCreatingPolygon] = useState(false)
+  const [locationName, setLocationName] = useState<string | null>(null)
   const hasInitializedRef = useRef(false)
   const currentPolyidRef = useRef<string | null>(null)
+
+  // Fetch location name from coordinates using reverse geocoding
+  const fetchLocationName = useCallback(async (coordinates: [number, number] | number[]) => {
+    try {
+      // Coordinates might be [lon, lat] from API or [lat, lng] - Nominatim uses [lat, lon] format
+      const [first, second] = coordinates
+      
+      // Determine if coordinates are in [lat, lng] or [lon, lat] format
+      // If first value is between -90 and 90, it's likely latitude
+      // If first value is between -180 and 180 but outside -90 to 90, it's likely longitude
+      let lat: number, lon: number
+      
+      if (Math.abs(first) <= 90 && Math.abs(second) <= 180) {
+        // Likely [lat, lng] format
+        lat = first
+        lon = second
+      } else if (Math.abs(first) <= 180 && Math.abs(second) <= 90) {
+        // Likely [lon, lat] format - swap them
+        lat = second
+        lon = first
+      } else {
+        console.warn('Unable to determine coordinate format:', coordinates)
+        return
+      }
+      
+      // Validate coordinates
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        console.warn('Invalid coordinates for reverse geocoding:', [lat, lon])
+        return
+      }
+      
+      // Use Nominatim API for reverse geocoding (free, no API key required)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'EarthFromSpace/1.0' // Required by Nominatim
+          }
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Extract location name from response
+        if (data.address) {
+          const address = data.address
+          // Try to get a readable location name
+          const locationParts: string[] = []
+          
+          // Prefer city/town/village, then state/region, then country
+          if (address.city) locationParts.push(address.city)
+          else if (address.town) locationParts.push(address.town)
+          else if (address.village) locationParts.push(address.village)
+          else if (address.municipality) locationParts.push(address.municipality)
+          
+          if (address.state) locationParts.push(address.state)
+          else if (address.region) locationParts.push(address.region)
+          else if (address.province) locationParts.push(address.province)
+          
+          if (address.country) locationParts.push(address.country)
+          
+          if (locationParts.length > 0) {
+            setLocationName(locationParts.join(', '))
+          } else if (data.display_name) {
+            // Fallback to full display name
+            setLocationName(data.display_name.split(',').slice(0, 3).join(', '))
+          }
+        } else if (data.display_name) {
+          setLocationName(data.display_name.split(',').slice(0, 3).join(', '))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching location name:', error)
+      // Don't set error state, just log it - location name is optional
+    }
+  }, [])
 
   // Helper function to fetch soil and history data
   const fetchSoilAndHistoryData = useCallback(async (polyid: string) => {
@@ -322,6 +400,11 @@ Note: The system will automatically reuse existing polygons when possible.`
       if (polygonId) {
         await fetchSoilAndHistoryData(polygonId)
       }
+      
+      // Fetch location name from coordinates if we have center coordinates
+      if (polygonData && polygonData.center && Array.isArray(polygonData.center) && polygonData.center.length === 2) {
+        fetchLocationName(polygonData.center)
+      }
     } catch (error: any) {
       console.error('Error creating polygon or fetching data:', error)
       
@@ -335,7 +418,7 @@ Note: The system will automatically reuse existing polygons when possible.`
       setIsLoadingApi(false)
       setIsCreatingPolygon(false)
     }
-  }, [fetchSoilAndHistoryData, isCreatingPolygon])
+  }, [fetchSoilAndHistoryData, isCreatingPolygon, fetchLocationName])
 
   useEffect(() => {
     // Prevent duplicate calls in React StrictMode
@@ -469,7 +552,35 @@ Note: The system will automatically reuse existing polygons when possible.`
             .finally(() => setIsLoadingAI(false))
 
           // Set polygon data from stored info if available
-          setPolygonData({ polyid: storedPolyid, center: [0, 0], area: 0 })
+          // Calculate center from shape coordinates
+          const coords = parsedData.coordinates as LatLngExpression[]
+          const coordsArray = coords.map(coord => {
+            if (Array.isArray(coord)) {
+              return [coord[0], coord[1]] as [number, number]
+            } else if (coord && typeof coord === 'object' && 'lat' in coord && 'lng' in coord) {
+              return [(coord as L.LatLng).lat, (coord as L.LatLng).lng] as [number, number]
+            }
+            return null
+          }).filter(Boolean) as [number, number][]
+          
+          if (coordsArray.length > 0) {
+            const center: [number, number] = [
+              coordsArray.reduce((sum, c) => sum + c[0], 0) / coordsArray.length,
+              coordsArray.reduce((sum, c) => sum + c[1], 0) / coordsArray.length,
+            ]
+            
+            setPolygonData({ 
+              polyid: storedPolyid, 
+              center: center, 
+              area: parsedData.areaInSquareMeters || 0 
+            })
+            
+            // Fetch location name from center coordinates
+            fetchLocationName(center)
+          } else {
+            setPolygonData({ polyid: storedPolyid, center: [0, 0], area: 0 })
+          }
+          
           currentPolyidRef.current = storedPolyid
           // Update coordinates hash to match current coordinates (in case it wasn't set before)
           localStorage.setItem('coordsHash', coordsHash)
@@ -501,7 +612,7 @@ Note: The system will automatically reuse existing polygons when possible.`
     } finally {
       setIsLoading(false)
     }
-  }, [router, createPolygonAndFetchData])
+  }, [router, createPolygonAndFetchData, fetchLocationName])
 
   // Calculate dimensions for rectangle
   const calculateDimensions = () => {
@@ -629,6 +740,28 @@ Note: The system will automatically reuse existing polygons when possible.`
                   <p className="text-sm font-medium text-muted-foreground mb-1">Total Area</p>
                   <p className="text-2xl font-bold text-success">{shapeData.area}</p>
                 </div>
+                {polygonData && polygonData.center && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Relative Location</p>
+                    {locationName ? (
+                      <>
+                        <p className="text-lg font-semibold text-foreground mb-1">{locationName}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          Coordinates: [{polygonData.center[0]?.toFixed(6)}, {polygonData.center[1]?.toFixed(6)}]
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg font-semibold text-foreground font-mono">
+                          [{polygonData.center[0]?.toFixed(6)}, {polygonData.center[1]?.toFixed(6)}]
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Loading location name...
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
                 {dimensions && (
                   <>
                     <div>
@@ -712,270 +845,6 @@ Note: The system will automatically reuse existing polygons when possible.`
                     </ul>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {polygonData && (
-          <Card className="border-2 border-purple-400/50 bg-gradient-to-br from-purple-50 to-purple-100/50 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-purple-500 border-2 border-purple-600/50 shadow-md">
-                  <MapPin className="size-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-purple-700">Polygon Information</h2>
-                  <p className="text-sm text-muted-foreground">API Polygon Data</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Polygon ID</p>
-                  <p className="text-lg font-semibold text-foreground font-mono">{polygonData.polyid}</p>
-                </div>
-                {polygonData.center && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Center</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      [{polygonData.center[0]?.toFixed(6)}, {polygonData.center[1]?.toFixed(6)}]
-                    </p>
-                  </div>
-                )}
-                {polygonData.area && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Area (m²)</p>
-                    <p className="text-lg font-semibold text-foreground">{polygonData.area.toFixed(2)}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {soilData && (
-          <Card className="border-2 border-green-400/50 bg-gradient-to-br from-green-50 to-green-100/50 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-green-500 border-2 border-green-600/50 shadow-md">
-                  <Droplets className="size-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-green-700">Soil Data</h2>
-                  <p className="text-sm text-muted-foreground">
-                    API Soil Analysis {polygonData && `(Polygon: ${polygonData.polyid.substring(0, 8)}...)`}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm border-2 border-green-200/50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <pre className="text-sm text-foreground font-mono whitespace-pre-wrap break-words">
-                  {JSON.stringify(soilData, null, 2)}
-                </pre>
-              </div>
-              {/* Display structured soil data if available */}
-              <div className="mt-4 space-y-3">
-                {/* API returns: { dt: number, t0: number, t10: number, moisture: number } */}
-                {/* Temperature at 0cm (t0) - in Kelvin, convert to Celsius */}
-                {soilData.t0 !== undefined && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Temperature at 0cm</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {(() => {
-                        const tempValue = typeof soilData.t0 === 'number' 
-                          ? soilData.t0 
-                          : typeof soilData.t0 === 'object' && soilData.t0 !== null
-                            ? (soilData.t0 as any).value 
-                            : null
-                        
-                        if (tempValue === null) return 'N/A'
-                        
-                        // Convert from Kelvin to Celsius (API returns in Kelvin)
-                        const tempCelsius = tempValue - 273.15
-                        return `${tempCelsius.toFixed(2)}°C (${tempValue.toFixed(2)}K)`
-                      })()}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Temperature at 10cm (t10) - in Kelvin, convert to Celsius */}
-                {soilData.t10 !== undefined && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Temperature at 10cm</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {(() => {
-                        const tempValue = typeof soilData.t10 === 'number' 
-                          ? soilData.t10 
-                          : typeof soilData.t10 === 'object' && soilData.t10 !== null
-                            ? (soilData.t10 as any).value 
-                            : null
-                        
-                        if (tempValue === null) return 'N/A'
-                        
-                        // Convert from Kelvin to Celsius (API returns in Kelvin)
-                        const tempCelsius = tempValue - 273.15
-                        return `${tempCelsius.toFixed(2)}°C (${tempValue.toFixed(2)}K)`
-                      })()}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Temperature at 100cm (t100) - in Kelvin, convert to Celsius */}
-                {soilData.t100 !== undefined && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Temperature at 100cm</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {(() => {
-                        const tempValue = typeof soilData.t100 === 'number' 
-                          ? soilData.t100 
-                          : typeof soilData.t100 === 'object' && soilData.t100 !== null
-                            ? (soilData.t100 as any).value 
-                            : null
-                        
-                        if (tempValue === null) return 'N/A'
-                        
-                        // Convert from Kelvin to Celsius (API returns in Kelvin)
-                        const tempCelsius = tempValue - 273.15
-                        return `${tempCelsius.toFixed(2)}°C (${tempValue.toFixed(2)}K)`
-                      })()}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Alternative structures - check for common field names */}
-                {(soilData.t || soilData.temperature || soilData.temp) && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Temperature</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {typeof (soilData.t || soilData.temperature || soilData.temp) === 'number'
-                        ? `${(soilData.t || soilData.temperature || soilData.temp).toFixed(2)}°C`
-                        : JSON.stringify(soilData.t || soilData.temperature || soilData.temp)}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Moisture data - API returns as a number (m³/m³) */}
-                {soilData.moisture !== undefined && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Soil Moisture</p>
-                    <div className="space-y-1 mt-2">
-                      {typeof soilData.moisture === 'number' ? (
-                        <p className="text-lg font-semibold text-foreground">
-                          {(soilData.moisture * 100).toFixed(2)}% ({(soilData.moisture).toFixed(4)} m³/m³)
-                        </p>
-                      ) : typeof soilData.moisture === 'object' && soilData.moisture !== null ? (
-                        <>
-                          {(soilData.moisture as any).surface !== undefined && (
-                            <p className="text-sm text-foreground">
-                              Surface: {typeof (soilData.moisture as any).surface === 'number' 
-                                ? `${((soilData.moisture as any).surface * 100).toFixed(2)}%`
-                                : String((soilData.moisture as any).surface)}
-                            </p>
-                          )}
-                          {(soilData.moisture as any).depth10 !== undefined && (
-                            <p className="text-sm text-foreground">
-                              10cm: {typeof (soilData.moisture as any).depth10 === 'number' 
-                                ? `${((soilData.moisture as any).depth10 * 100).toFixed(2)}%`
-                                : String((soilData.moisture as any).depth10)}
-                            </p>
-                          )}
-                          {(soilData.moisture as any).depth100 !== undefined && (
-                            <p className="text-sm text-foreground">
-                              100cm: {typeof (soilData.moisture as any).depth100 === 'number' 
-                                ? `${((soilData.moisture as any).depth100 * 100).toFixed(2)}%`
-                                : String((soilData.moisture as any).depth100)}
-                            </p>
-                          )}
-                          {(soilData.moisture as any).moisture !== undefined && (
-                            <p className="text-sm text-foreground">
-                              Moisture: {typeof (soilData.moisture as any).moisture === 'number' 
-                                ? `${((soilData.moisture as any).moisture * 100).toFixed(2)}%`
-                                : String((soilData.moisture as any).moisture)}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-sm text-foreground">
-                          {String(soilData.moisture)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Display timestamp if available */}
-                {soilData.dt && (
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">Data Timestamp</p>
-                    <p className="text-sm text-foreground">
-                      {new Date(soilData.dt * 1000).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Display any other numeric fields that might be soil data */}
-                {Object.entries(soilData).filter(([key, value]) => 
-                  !['t0', 't10', 't100', 'moisture', 't', 'temperature', 'temp'].includes(key) &&
-                  typeof value === 'number' &&
-                  (key.toLowerCase().includes('temp') || key.toLowerCase().includes('moisture'))
-                ).map(([key, value]) => (
-                  <div key={key} className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">{key}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {key.toLowerCase().includes('temp') ? `${value.toFixed(2)}°C` : value.toFixed(2)}
-                    </p>
-                  </div>
-                ))}
-                
-                {/* Show a message if no structured data was found but we have soilData */}
-                {!soilData.t0 && !soilData.t10 && !soilData.t100 && !soilData.moisture && 
-                 !soilData.t && !soilData.temperature && !soilData.temp && (
-                  <div className="bg-amber-50/60 rounded-lg p-3 border border-amber-200">
-                    <p className="text-sm font-medium text-amber-700 mb-2">
-                      ⚠️ No standard soil data fields found
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      The API returned data, but it doesn't match the expected structure. 
-                      Check the JSON above to see the actual data format. 
-                      Available fields: {Object.keys(soilData).join(', ')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {polygonHistoryData && polygonHistoryData.length > 0 && (
-          <Card className="border-2 border-orange-400/50 bg-gradient-to-br from-orange-50 to-orange-100/50 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-orange-500 border-2 border-orange-600/50 shadow-md">
-                  <TrendingUp className="size-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-orange-700">NDVI History</h2>
-                  <p className="text-sm text-muted-foreground">Historical Polygon Data</p>
-                </div>
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm border-2 border-orange-200/50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <pre className="text-sm text-foreground font-mono whitespace-pre-wrap break-words">
-                  {JSON.stringify(polygonHistoryData, null, 2)}
-                </pre>
-              </div>
-              {/* Display structured history data */}
-              <div className="mt-4 space-y-2">
-                {polygonHistoryData.map((item, idx) => (
-                  <div key={idx} className="bg-white/60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Date: {item.dt ? new Date(item.dt * 1000).toLocaleDateString() : 'N/A'}
-                    </p>
-                    {item.data?.value && (
-                      <p className="text-lg font-semibold text-foreground">
-                        NDVI Value: {item.data.value.toFixed(4)}
-                      </p>
-                    )}
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
