@@ -281,11 +281,26 @@ export default function AnalysisPage() {
           ))
           localStorage.setItem('coordsHash', coordsHash)
         } else {
-          // Show more detailed error message
-          const errorMessage = errorData.details 
+          // Check for polygon creation limit error
+          const errorMessage = errorData.message || errorData.error || ''
+          if (errorMessage.includes('can not create polygons') || errorMessage.includes('polygon creation limit')) {
+            const limitError = `Your AgroMonitoring API key has reached its polygon creation limit. 
+
+Solutions:
+• Check your account limits at agromonitoring.com
+• Wait for your daily/monthly limit to reset
+• Consider upgrading your AgroMonitoring plan
+• Try reusing an existing polygon by drawing a similar area
+
+Note: The system will automatically reuse existing polygons when possible.`
+            throw new Error(limitError)
+          }
+          
+          // Show more detailed error message for other errors
+          const detailedErrorMessage = errorData.details 
             ? `${errorData.error || 'Failed to create polygon'}: ${errorData.message || JSON.stringify(errorData.details)}`
             : errorData.error || errorData.message || `Failed to create polygon: ${createRes.status}`
-          throw new Error(errorMessage)
+          throw new Error(detailedErrorMessage)
         }
       } else {
         // Success - get the new polygon ID
@@ -675,18 +690,28 @@ export default function AnalysisPage() {
             <CardContent className="p-6">
               <div className="space-y-3">
                 <div className="text-center">
-                  <p className="text-red-700 font-semibold text-lg mb-2">Error: {apiError}</p>
+                  <p className="text-red-700 font-semibold text-lg mb-2">
+                    {apiError.includes('polygon creation limit') || apiError.includes('can not create polygons') 
+                      ? 'Polygon Creation Limit Reached' 
+                      : `Error: ${apiError.split('\n')[0]}`}
+                  </p>
                 </div>
-                <div className="bg-white/60 rounded-lg p-4">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Troubleshooting:</p>
-                  <ul className="text-sm text-foreground space-y-1 list-disc list-inside">
-                    <li>Make sure the backend server is running on port 5000</li>
-                    <li>Check that your API_KEY is set in backend/.env</li>
-                    <li>Verify your API key is valid at agromonitoring.com</li>
-                    <li>Check the browser console (F12) for more details</li>
-                    <li>Check the backend server console for error logs</li>
-                  </ul>
-                </div>
+                {(apiError.includes('polygon creation limit') || apiError.includes('can not create polygons')) ? (
+                  <div className="bg-white/80 rounded-lg p-4 space-y-3">
+                    <p className="text-sm text-foreground whitespace-pre-line">{apiError}</p>
+                  </div>
+                ) : (
+                  <div className="bg-white/60 rounded-lg p-4">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Troubleshooting:</p>
+                    <ul className="text-sm text-foreground space-y-1 list-disc list-inside">
+                      <li>Make sure the backend server is running on port 5000</li>
+                      <li>Check that your API_KEY is set in backend/.env</li>
+                      <li>Verify your API key is valid at agromonitoring.com</li>
+                      <li>Check the browser console (F12) for more details</li>
+                      <li>Check the backend server console for error logs</li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -972,21 +997,48 @@ export default function AnalysisPage() {
             {/* Score Block - Soil Quality Index */}
             <Card className="border-2 border-purple-400/50 bg-gradient-to-br from-purple-50 to-purple-100/50 mb-6">
               <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-purple-500 border-2 border-purple-600/50 shadow-md">
-                    <Brain className="size-6 text-white" />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-12 items-center justify-center rounded-xl bg-purple-500 border-2 border-purple-600/50 shadow-md">
+                      <Brain className="size-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-purple-700">AI Agriculture Analysis</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Smart Farming Assistant — Earth from Space
+                        {aiAnalysisData.Analysis_Source && (
+                          <span className="ml-2 text-xs text-purple-600">
+                            ({aiAnalysisData.Analysis_Source})
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-purple-700">AI Agriculture Analysis</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Smart Farming Assistant — Earth from Space
-                      {aiAnalysisData.Analysis_Source && (
-                        <span className="ml-2 text-xs text-purple-600">
-                          ({aiAnalysisData.Analysis_Source})
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                  {/* Button to view comparison areas */}
+                  {shapeData && polygonData && aiAnalysisData && (
+                    <button
+                      onClick={() => {
+                        // Store current analysis data for comparison page
+                        // AgroMonitoring API returns center as [lon, lat], but we need [lat, lng]
+                        const center = polygonData.center
+                        const centerLatLng: [number, number] = Array.isArray(center) && center.length === 2
+                          ? [center[1], center[0]] // Swap to [lat, lng] format
+                          : polygonData.center as [number, number] // Fallback if already correct
+                        
+                        localStorage.setItem('currentAnalysis', JSON.stringify({
+                          polyid: polygonData.polyid,
+                          score: aiAnalysisData.Soil_Quality_Index || 0,
+                          coordinates: shapeData.coordinates,
+                          center: centerLatLng
+                        }))
+                        router.push('/analysis/comparison')
+                      }}
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md border-2 border-purple-400/50 transition-all duration-200 hover:shadow-lg hover:scale-105 flex items-center gap-2"
+                    >
+                      <TrendingUp className="size-4" />
+                      Compare with Nearby Areas
+                    </button>
+                  )}
                 </div>
 
                 {/* Score Display - Large and Prominent */}
@@ -994,31 +1046,45 @@ export default function AnalysisPage() {
                   <div className="text-center">
                     <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">Soil Quality Index</h3>
                     <div className="flex items-center justify-center gap-4 mb-4">
-                      <div className={`px-8 py-6 rounded-2xl font-bold text-5xl shadow-lg ${
-                        aiAnalysisData.Fertility_Level === 'Excellent' 
-                          ? 'bg-gradient-to-br from-green-400 to-green-600 text-white border-4 border-green-300' 
-                          : aiAnalysisData.Fertility_Level === 'Moderate'
-                          ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white border-4 border-yellow-300'
-                          : 'bg-gradient-to-br from-red-400 to-red-600 text-white border-4 border-red-300'
-                      }`}>
-                        {typeof aiAnalysisData.Soil_Quality_Index === 'number' 
-                          ? aiAnalysisData.Soil_Quality_Index.toFixed(1) 
-                          : aiAnalysisData.Soil_Quality_Index}
-                      </div>
-                      <div className="text-left">
-                        <div className={`text-2xl font-bold mb-1 ${
-                          aiAnalysisData.Fertility_Level === 'Excellent' 
-                            ? 'text-green-700' 
-                            : aiAnalysisData.Fertility_Level === 'Moderate'
-                            ? 'text-yellow-700'
-                            : 'text-red-700'
-                        }`}>
-                          {aiAnalysisData.Fertility_Level === 'Excellent' ? '🟢' : aiAnalysisData.Fertility_Level === 'Moderate' ? '🟡' : '🔴'} {aiAnalysisData.Fertility_Level}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Confidence: {(aiAnalysisData.AI_Confidence_Score * 100).toFixed(0)}%
-                        </p>
-                      </div>
+                      {(() => {
+                        const scoreValue = aiAnalysisData.Soil_Quality_Index
+                        const score = typeof scoreValue === 'number' 
+                          ? scoreValue 
+                          : typeof scoreValue === 'string' 
+                          ? parseFloat(scoreValue) || 0
+                          : 0
+                        const isGreen = score >= 80 && score <= 100
+                        const isYellow = score >= 50 && score < 80
+                        const isRed = score < 50
+                        
+                        return (
+                          <>
+                            <div className={`px-8 py-6 rounded-2xl font-bold text-5xl shadow-lg ${
+                              isGreen
+                                ? 'bg-gradient-to-br from-green-400 to-green-600 text-white border-4 border-green-300' 
+                                : isYellow
+                                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white border-4 border-yellow-300'
+                                : 'bg-gradient-to-br from-red-400 to-red-600 text-white border-4 border-red-300'
+                            }`}>
+                              {score.toFixed(1)}
+                            </div>
+                            <div className="text-left">
+                              <div className={`text-2xl font-bold mb-1 ${
+                                isGreen
+                                  ? 'text-green-700' 
+                                  : isYellow
+                                  ? 'text-yellow-700'
+                                  : 'text-red-700'
+                              }`}>
+                                {isGreen ? '🟢' : isYellow ? '🟡' : '🔴'} {aiAnalysisData.Fertility_Level}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                Confidence: {(aiAnalysisData.AI_Confidence_Score * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                          </>
+                        )
+                      })()}
                     </div>
                     {aiAnalysisData.Field_Summary && (
                       <p className="text-foreground text-base italic border-t border-purple-200 pt-4 mt-4">
