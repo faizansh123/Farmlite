@@ -323,19 +323,30 @@ export const analyzeAgriculture = async (req, res) => {
     let soilData = null;
     let ndviHistory = null;
     
-    // Check if data was provided in request body (optional, for testing)
+    // Check if data was provided in request body (from frontend or for testing)
     if (req.body && req.body.soilData) {
-      console.log("Using soilData from request body");
+      console.log("✅ Using soilData from request body (frontend provided)");
       soilData = req.body.soilData;
     }
     
     if (req.body && req.body.ndviHistory) {
-      console.log("Using ndviHistory from request body");
+      console.log("✅✅✅ Using ndviHistory from request body (frontend provided) ✅✅✅");
       ndviHistory = req.body.ndviHistory;
+      console.log("NDVI history from body type:", typeof ndviHistory, Array.isArray(ndviHistory) ? "Array" : "Object");
+      if (Array.isArray(ndviHistory)) {
+        console.log(`NDVI history array has ${ndviHistory.length} entries`);
+        if (ndviHistory.length > 0) {
+          console.log("First NDVI entry from body:", JSON.stringify(ndviHistory[0]).substring(0, 300));
+        }
+      }
     }
     
-    // Fetch data from API if not provided in body
-    if (!soilData || !ndviHistory) {
+    // Fetch data from API only if not provided in body
+    // IMPORTANT: Don't fetch if data was provided - use what frontend sent
+    const needSoilData = !soilData;
+    const needNdviData = !ndviHistory;
+    
+    if (needSoilData || needNdviData) {
       if (!API_KEY) {
         return res.status(500).json({ 
           error: "Server configuration error", 
@@ -344,15 +355,15 @@ export const analyzeAgriculture = async (req, res) => {
       }
       
       try {
-        // Fetch soil data from API
-        if (!soilData) {
+        // Fetch soil data from API only if not provided in request body
+        if (needSoilData) {
           console.log(`Fetching soil data from API for polyid: ${polyid}`);
           const soilRes = await fetch(
             `http://api.agromonitoring.com/agro/1.0/soil?polyid=${polyid}&appid=${API_KEY}&duplicated=true`
           );
           if (soilRes.ok) {
             soilData = await soilRes.json();
-            console.log("Soil data fetched successfully:", Object.keys(soilData));
+            console.log("Soil data fetched successfully from API:", Object.keys(soilData));
           } else {
             const errorData = await soilRes.json().catch(() => ({}));
             console.error("Error fetching soil data for analysis:", errorData);
@@ -362,10 +373,12 @@ export const analyzeAgriculture = async (req, res) => {
               details: errorData
             });
           }
+        } else {
+          console.log("⏭️  Skipping soil data fetch - using data from request body");
         }
         
-        // Fetch NDVI history from API
-        if (!ndviHistory) {
+        // Fetch NDVI history from API only if not provided in request body
+        if (needNdviData) {
           console.log(`Fetching NDVI history from API for polyid: ${polyid}`);
           
           // Try multiple time ranges - newer polygons might not have historical data
@@ -475,6 +488,9 @@ export const analyzeAgriculture = async (req, res) => {
             console.warn("   Analysis will continue without NDVI data");
             ndviHistory = null;
           }
+        } else {
+          console.log("⏭️  Skipping NDVI fetch - using data from request body");
+          console.log("✅ NDVI data from frontend will be used for analysis");
         }
       } catch (fetchError) {
         console.error("Error fetching data for analysis:", fetchError);
@@ -757,7 +773,23 @@ export const analyzeAgriculture = async (req, res) => {
     }
     
     const currentNDVI = ndviMean !== null && !isNaN(ndviMean) ? ndviMean : null;
-    console.log("Final currentNDVI value:", currentNDVI);
+    console.log("Final NDVI values summary:");
+    console.log(`  ndviMean: ${ndviMean} (${typeof ndviMean})`);
+    console.log(`  ndviMedian: ${ndviMedian} (${typeof ndviMedian})`);
+    console.log(`  ndviMin: ${ndviMin} (${typeof ndviMin})`);
+    console.log(`  ndviMax: ${ndviMax} (${typeof ndviMax})`);
+    console.log(`  ndviStd: ${ndviStd} (${typeof ndviStd})`);
+    console.log(`  currentNDVI: ${currentNDVI} (${typeof currentNDVI})`);
+    console.log("=".repeat(60));
+    
+    // Final validation - if we have NDVI data, log it clearly
+    if (ndviMean !== null && !isNaN(ndviMean)) {
+      console.log("✅✅✅ NDVI DATA IS AVAILABLE AND WILL BE SENT TO GEMINI ✅✅✅");
+      console.log(`   Mean NDVI: ${ndviMean.toFixed(4)}`);
+    } else {
+      console.error("❌❌❌ NDVI DATA IS MISSING - WILL SHOW AS N/A ❌❌❌");
+      console.error("   This means Gemini will see NDVI as unavailable");
+    }
     console.log("=".repeat(60));
     
     // Fetch polygon information for Gemini prompt (optional, can work without it)
@@ -921,13 +953,13 @@ export const analyzeAgriculture = async (req, res) => {
             : "unknown"
         },
         vegetation: {
-          ndvi_mean: currentNDVI !== null && !isNaN(currentNDVI) ? currentNDVI.toFixed(4) : "N/A",
+          ndvi_mean: ndviMean !== null && !isNaN(ndviMean) ? ndviMean.toFixed(4) : "N/A",
           ndvi_median: ndviMedian !== null && !isNaN(ndviMedian) ? ndviMedian.toFixed(4) : "N/A",
           ndvi_min: ndviMin !== null && !isNaN(ndviMin) ? ndviMin.toFixed(4) : "N/A",
           ndvi_max: ndviMax !== null && !isNaN(ndviMax) ? ndviMax.toFixed(4) : "N/A",
           ndvi_std: ndviStd !== null && !isNaN(ndviStd) ? ndviStd.toFixed(4) : "N/A",
-          status: currentNDVI !== null 
-            ? (currentNDVI < 0.1 ? "very_poor" : currentNDVI < 0.3 ? "poor" : currentNDVI < 0.5 ? "moderate" : currentNDVI < 0.7 ? "good" : "excellent")
+          status: ndviMean !== null && !isNaN(ndviMean)
+            ? (ndviMean < 0.1 ? "very_poor" : ndviMean < 0.3 ? "poor" : ndviMean < 0.5 ? "moderate" : ndviMean < 0.7 ? "good" : "excellent")
             : "unknown"
         }
       },

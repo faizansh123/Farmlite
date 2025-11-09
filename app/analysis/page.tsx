@@ -119,6 +119,9 @@ export default function AnalysisPage() {
 
   // Helper function to fetch soil and history data
   const fetchSoilAndHistoryData = useCallback(async (polyid: string) => {
+    let fetchedSoilData: SoilData | null = null
+    let fetchedNdviHistory: PolygonHistoryData[] | null = null
+    
     // Fetch soil data
     try {
       const soilRes = await fetch(`http://localhost:5000/api/soil/${polyid}`)
@@ -126,6 +129,7 @@ export default function AnalysisPage() {
         const soilResult: SoilData = await soilRes.json()
         console.log('Soil data received:', soilResult)
         console.log('Soil data keys:', Object.keys(soilResult))
+        fetchedSoilData = soilResult
         setSoilData(soilResult)
       } else {
         const errorData = await soilRes.json().catch(() => ({}))
@@ -145,7 +149,13 @@ export default function AnalysisPage() {
       const historyRes = await fetch(`http://localhost:5000/api/soil/polygon/${polyid}`)
       if (historyRes.ok) {
         const historyResult: PolygonHistoryData[] = await historyRes.json()
-        setPolygonHistoryData(Array.isArray(historyResult) ? historyResult : [historyResult])
+        const ndviArray = Array.isArray(historyResult) ? historyResult : [historyResult]
+        fetchedNdviHistory = ndviArray
+        setPolygonHistoryData(ndviArray)
+        console.log('✅ NDVI history fetched successfully:', ndviArray.length, 'entries')
+        if (ndviArray.length > 0 && ndviArray[0]) {
+          console.log('First NDVI entry structure:', JSON.stringify(ndviArray[0]).substring(0, 300))
+        }
       } else {
         const errorData = await historyRes.json().catch(() => ({}))
         console.error('Error fetching NDVI history data:', errorData)
@@ -156,12 +166,45 @@ export default function AnalysisPage() {
     }
 
     // Fetch AI Analysis
+    // IMPORTANT: Send the NDVI data we just fetched (not from state, which updates async)
     try {
       setIsLoadingAI(true)
-      const aiRes = await fetch(`http://localhost:5000/api/ai-analysis/${polyid}`)
+      
+      // Prepare request body with the data we just fetched
+      const requestBody: any = {}
+      
+      // Use the NDVI data we just fetched (not from state)
+      if (fetchedNdviHistory && fetchedNdviHistory.length > 0) {
+        console.log('📤 Sending NDVI history to AI analysis endpoint:', fetchedNdviHistory.length, 'entries')
+        requestBody.ndviHistory = fetchedNdviHistory
+        console.log('NDVI data being sent:', JSON.stringify(fetchedNdviHistory).substring(0, 500))
+      } else {
+        console.warn('⚠️  No NDVI history data to send to AI analysis')
+      }
+      
+      // Use soil data we just fetched if available
+      if (fetchedSoilData) {
+        requestBody.soilData = fetchedSoilData
+      }
+      
+      // Always use POST to send data
+      const fetchOptions: RequestInit = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }
+      
+      console.log('📤 Calling AI analysis endpoint with:', {
+        hasNdviHistory: !!requestBody.ndviHistory,
+        ndviEntries: requestBody.ndviHistory?.length || 0,
+        hasSoilData: !!requestBody.soilData
+      })
+      
+      const aiRes = await fetch(`http://localhost:5000/api/ai-analysis/${polyid}`, fetchOptions)
       if (aiRes.ok) {
         const aiResult: AIAnalysisData = await aiRes.json()
-        console.log('AI Analysis received:', aiResult)
+        console.log('✅ AI Analysis received:', aiResult)
+        console.log('NDVI in AI response Current_Conditions.vegetation:', aiResult.Current_Conditions?.vegetation)
         setAiAnalysisData(aiResult)
       } else {
         const errorData = await aiRes.json().catch(() => ({}))
@@ -373,7 +416,21 @@ export default function AnalysisPage() {
 
           // Fetch AI Analysis
           setIsLoadingAI(true)
-          fetch(`http://localhost:5000/api/ai-analysis/${storedPolyid}`)
+          
+          // Prepare request body with NDVI data if we have it
+          const requestBody: any = {}
+          // Note: polygonHistoryData might not be available yet in this useEffect
+          // It will be fetched separately, and AI analysis will try to fetch NDVI itself
+          
+          const fetchOptions: RequestInit = Object.keys(requestBody).length > 0
+            ? {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+              }
+            : {}
+          
+          fetch(`http://localhost:5000/api/ai-analysis/${storedPolyid}`, fetchOptions)
             .then((res) => {
               if (res.ok) {
                 return res.json()
@@ -386,7 +443,8 @@ export default function AnalysisPage() {
             })
             .then((data) => {
               if (data) {
-                console.log('AI Analysis received for polygon', storedPolyid, ':', data)
+                console.log('✅ AI Analysis received for polygon', storedPolyid, ':', data)
+                console.log('NDVI in response:', data.Current_Conditions?.vegetation)
                 setAiAnalysisData(data)
               }
             })
