@@ -37,7 +37,11 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API Key configured: ${!!process.env.API_KEY ? "Yes ✓" : "No ✗"}`);
+  console.log(`Gemini API Key configured: ${!!process.env.GEMINI_API_KEY ? "Yes ✓" : "No ✗"}`);
   if (!process.env.API_KEY) {
     console.warn("⚠️  WARNING: API_KEY not found in .env file. Please add it to backend/.env");
+  }
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("⚠️  WARNING: GEMINI_API_KEY not found in .env file. AI analysis will use rule-based fallback.");
   }
 });

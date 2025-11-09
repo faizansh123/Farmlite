@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Sprout, ArrowLeft, MapPin, Ruler, Droplets, TrendingUp } from 'lucide-react'
+import { Sprout, ArrowLeft, MapPin, Ruler, Droplets, TrendingUp, Brain, CheckCircle, Info } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/card'
 import dynamic from 'next/dynamic'
 import type { LatLngExpression } from 'leaflet'
@@ -65,14 +65,53 @@ interface PolygonHistoryData {
   [key: string]: any
 }
 
+interface AIAnalysisData {
+  Soil_Quality_Index: number
+  Fertility_Level: string
+  Summary: string
+  Field_Summary?: string
+  Current_Conditions: {
+    temperature: {
+      surface: string
+      depth_10cm: string
+      status: string
+    }
+    moisture: {
+      value: string
+      status: string
+    }
+    vegetation: {
+      ndvi_mean: string
+      ndvi_median: string
+      ndvi_min: string
+      ndvi_max: string
+      ndvi_std: string
+      status: string
+    }
+  }
+  Predicted_Yield_Quality: string
+  Predicted_Yield?: string
+  Predicted_Crops: string[]
+  Recommendations: string[]
+  AI_Confidence_Score: number
+  Predictions: {
+    ndvi_with_moisture_increase_10pct: string
+    current_ndvi: string
+  }
+  Data_Timestamp: string
+  Analysis_Source?: string
+}
+
 export default function AnalysisPage() {
   const router = useRouter()
   const [shapeData, setShapeData] = useState<ShapeData | null>(null)
   const [polygonData, setPolygonData] = useState<PolygonData | null>(null)
   const [soilData, setSoilData] = useState<SoilData | null>(null)
   const [polygonHistoryData, setPolygonHistoryData] = useState<PolygonHistoryData[] | null>(null)
+  const [aiAnalysisData, setAiAnalysisData] = useState<AIAnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingApi, setIsLoadingApi] = useState(false)
+  const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [isCreatingPolygon, setIsCreatingPolygon] = useState(false)
   const hasInitializedRef = useRef(false)
@@ -114,6 +153,25 @@ export default function AnalysisPage() {
     } catch (err: any) {
       console.error('Error fetching polygon history data:', err)
       setApiError(prev => prev ? `${prev}; NDVI data: ${err.message}` : `NDVI data: ${err.message}`)
+    }
+
+    // Fetch AI Analysis
+    try {
+      setIsLoadingAI(true)
+      const aiRes = await fetch(`http://localhost:5000/api/ai-analysis/${polyid}`)
+      if (aiRes.ok) {
+        const aiResult: AIAnalysisData = await aiRes.json()
+        console.log('AI Analysis received:', aiResult)
+        setAiAnalysisData(aiResult)
+      } else {
+        const errorData = await aiRes.json().catch(() => ({}))
+        console.error('Error fetching AI analysis:', errorData)
+      }
+    } catch (err: any) {
+      console.error('Error fetching AI analysis:', err)
+      // Don't set as critical error, just log it
+    } finally {
+      setIsLoadingAI(false)
     }
   }, [])
 
@@ -312,6 +370,30 @@ export default function AnalysisPage() {
               }
             })
             .finally(() => setIsLoadingApi(false))
+
+          // Fetch AI Analysis
+          setIsLoadingAI(true)
+          fetch(`http://localhost:5000/api/ai-analysis/${storedPolyid}`)
+            .then((res) => {
+              if (res.ok) {
+                return res.json()
+              } else {
+                return res.json().then(err => {
+                  console.error('Error fetching AI analysis:', err)
+                  return null
+                })
+              }
+            })
+            .then((data) => {
+              if (data) {
+                console.log('AI Analysis received for polygon', storedPolyid, ':', data)
+                setAiAnalysisData(data)
+              }
+            })
+            .catch((err) => {
+              console.error('Error fetching AI analysis:', err)
+            })
+            .finally(() => setIsLoadingAI(false))
 
           // Set polygon data from stored info if available
           setPolygonData({ polyid: storedPolyid, center: [0, 0], area: 0 })
@@ -814,6 +896,211 @@ export default function AnalysisPage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* AI Analysis Card */}
+        {isLoadingAI && (
+          <Card className="border-2 border-purple-400/50 bg-gradient-to-br from-purple-50 to-purple-100/50 mb-6">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-purple-700 font-semibold">Loading AI Analysis...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {aiAnalysisData && (
+          <>
+            {/* Score Block - Soil Quality Index */}
+            <Card className="border-2 border-purple-400/50 bg-gradient-to-br from-purple-50 to-purple-100/50 mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-purple-500 border-2 border-purple-600/50 shadow-md">
+                    <Brain className="size-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-purple-700">AI Agriculture Analysis</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Smart Farming Assistant — Earth from Space
+                      {aiAnalysisData.Analysis_Source && (
+                        <span className="ml-2 text-xs text-purple-600">
+                          ({aiAnalysisData.Analysis_Source})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Score Display - Large and Prominent */}
+                <div className="bg-white/90 backdrop-blur-sm border-2 border-purple-200/50 rounded-xl p-6 mb-4">
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">Soil Quality Index</h3>
+                    <div className="flex items-center justify-center gap-4 mb-4">
+                      <div className={`px-8 py-6 rounded-2xl font-bold text-5xl shadow-lg ${
+                        aiAnalysisData.Fertility_Level === 'Excellent' 
+                          ? 'bg-gradient-to-br from-green-400 to-green-600 text-white border-4 border-green-300' 
+                          : aiAnalysisData.Fertility_Level === 'Moderate'
+                          ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white border-4 border-yellow-300'
+                          : 'bg-gradient-to-br from-red-400 to-red-600 text-white border-4 border-red-300'
+                      }`}>
+                        {typeof aiAnalysisData.Soil_Quality_Index === 'number' 
+                          ? aiAnalysisData.Soil_Quality_Index.toFixed(1) 
+                          : aiAnalysisData.Soil_Quality_Index}
+                      </div>
+                      <div className="text-left">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          aiAnalysisData.Fertility_Level === 'Excellent' 
+                            ? 'text-green-700' 
+                            : aiAnalysisData.Fertility_Level === 'Moderate'
+                            ? 'text-yellow-700'
+                            : 'text-red-700'
+                        }`}>
+                          {aiAnalysisData.Fertility_Level === 'Excellent' ? '🟢' : aiAnalysisData.Fertility_Level === 'Moderate' ? '🟡' : '🔴'} {aiAnalysisData.Fertility_Level}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Confidence: {(aiAnalysisData.AI_Confidence_Score * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                    {aiAnalysisData.Field_Summary && (
+                      <p className="text-foreground text-base italic border-t border-purple-200 pt-4 mt-4">
+                        "{aiAnalysisData.Field_Summary || aiAnalysisData.Summary}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Summary Info */}
+                <div className="bg-white/90 backdrop-blur-sm border-2 border-purple-200/50 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-2">
+                    <Info className="size-5 text-purple-600 mt-0.5" />
+                    <h3 className="text-lg font-semibold text-foreground">Field Condition Summary</h3>
+                  </div>
+                  <p className="text-foreground">{aiAnalysisData.Field_Summary || aiAnalysisData.Summary}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tips & Recommendations Block */}
+            <Card className="border-2 border-green-400/50 bg-gradient-to-br from-green-50 to-green-100/50 mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-green-500 border-2 border-green-600/50 shadow-md">
+                    <CheckCircle className="size-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-green-700">AI Recommendations & Tips</h2>
+                    <p className="text-sm text-muted-foreground">Improvement strategies from Gemini AI</p>
+                  </div>
+                </div>
+
+                {/* Recommendations List */}
+                <div className="bg-white/90 backdrop-blur-sm border-2 border-green-200/50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">Improvement Recommendations</h3>
+                  <div className="space-y-4">
+                    {aiAnalysisData.Recommendations && aiAnalysisData.Recommendations.length > 0 ? (
+                      aiAnalysisData.Recommendations.map((recommendation, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 bg-green-50/50 rounded-lg border border-green-200/50">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm mt-0.5">
+                            {idx + 1}
+                          </div>
+                          <p className="text-foreground flex-1">{recommendation}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground italic">No recommendations available</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recommended Crops */}
+                {aiAnalysisData.Predicted_Crops && aiAnalysisData.Predicted_Crops.length > 0 && (
+                  <div className="bg-white/90 backdrop-blur-sm border-2 border-green-200/50 rounded-lg p-6 mt-4">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Recommended Crops</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {aiAnalysisData.Predicted_Crops.map((crop, idx) => (
+                        <span
+                          key={idx}
+                          className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium border-2 border-green-300 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          {crop}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Yield Prediction */}
+                {aiAnalysisData.Predicted_Yield && aiAnalysisData.Predicted_Yield !== 'Unknown' && (
+                  <div className="bg-white/90 backdrop-blur-sm border-2 border-green-200/50 rounded-lg p-6 mt-4">
+                    <h3 className="text-lg font-semibold text-foreground mb-3">Predicted Yield Quality</h3>
+                    <div className={`inline-block px-4 py-2 rounded-lg font-semibold text-lg ${
+                      (aiAnalysisData.Predicted_Yield_Quality === 'High' || aiAnalysisData.Predicted_Yield === 'High')
+                        ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+                        : (aiAnalysisData.Predicted_Yield_Quality === 'Medium' || aiAnalysisData.Predicted_Yield === 'Medium')
+                        ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300'
+                        : 'bg-red-100 text-red-700 border-2 border-red-300'
+                    }`}>
+                      {aiAnalysisData.Predicted_Yield || aiAnalysisData.Predicted_Yield_Quality}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Current Conditions Block (Optional - can be collapsed or moved) */}
+            <Card className="border-2 border-blue-400/50 bg-gradient-to-br from-blue-50 to-blue-100/50 mb-6">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Current Conditions</h3>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {/* Temperature */}
+                  <div className="bg-white/90 backdrop-blur-sm border-2 border-blue-200/50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Temperature</h4>
+                    <p className="text-sm text-foreground">Surface: {aiAnalysisData.Current_Conditions.temperature.surface}</p>
+                    <p className="text-sm text-foreground">10cm: {aiAnalysisData.Current_Conditions.temperature.depth_10cm}</p>
+                    <p className={`text-xs font-medium mt-2 ${
+                      aiAnalysisData.Current_Conditions.temperature.status === 'optimal' ? 'text-green-600' :
+                      aiAnalysisData.Current_Conditions.temperature.status === 'cold' ? 'text-blue-600' : 'text-orange-600'
+                    }`}>
+                      Status: {aiAnalysisData.Current_Conditions.temperature.status}
+                    </p>
+                  </div>
+
+                  {/* Moisture */}
+                  <div className="bg-white/90 backdrop-blur-sm border-2 border-blue-200/50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Moisture</h4>
+                    <p className="text-lg font-semibold text-foreground">{aiAnalysisData.Current_Conditions.moisture.value}</p>
+                    <p className={`text-xs font-medium mt-2 ${
+                      aiAnalysisData.Current_Conditions.moisture.status === 'sufficient' ? 'text-green-600' :
+                      aiAnalysisData.Current_Conditions.moisture.status === 'low' ? 'text-red-600' : 'text-yellow-600'
+                    }`}>
+                      Status: {aiAnalysisData.Current_Conditions.moisture.status}
+                    </p>
+                  </div>
+
+                  {/* Vegetation */}
+                  <div className="bg-white/90 backdrop-blur-sm border-2 border-blue-200/50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Vegetation (NDVI)</h4>
+                    <p className="text-sm text-foreground">Mean: {aiAnalysisData.Current_Conditions.vegetation.ndvi_mean}</p>
+                    <p className="text-sm text-foreground">Range: {aiAnalysisData.Current_Conditions.vegetation.ndvi_min} - {aiAnalysisData.Current_Conditions.vegetation.ndvi_max}</p>
+                    <p className={`text-xs font-medium mt-2 ${
+                      aiAnalysisData.Current_Conditions.vegetation.status.includes('excellent') || aiAnalysisData.Current_Conditions.vegetation.status.includes('good') ? 'text-green-600' :
+                      aiAnalysisData.Current_Conditions.vegetation.status.includes('poor') ? 'text-red-600' : 'text-yellow-600'
+                    }`}>
+                      Status: {aiAnalysisData.Current_Conditions.vegetation.status.replace('_', ' ')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Data Timestamp */}
+                {aiAnalysisData.Data_Timestamp && aiAnalysisData.Data_Timestamp !== 'N/A' && (
+                  <div className="text-xs text-muted-foreground text-center mt-4 pt-4 border-t border-blue-200">
+                    Analysis based on data from: {new Date(aiAnalysisData.Data_Timestamp).toLocaleString()}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Map Display Card */}
