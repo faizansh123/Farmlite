@@ -386,3 +386,5 @@ For issues, questions, or feature requests, please open an issue on the reposito
 **Built with ❤️ for farmers and agronomists worldwide**
 
 *Earth from Space - Transforming satellite data into agricultural insights*
+#   F a r m l i t e  
+ 
